@@ -1,0 +1,42 @@
+name: bunny_hoops
+description: "A new Flutter project for tracking lovely thoughts."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  google_fonts: ^6.2.1
+  home_widget: ^0.9.1
+  flutter_local_notifications: ^21.0.0
+  firebase_core: ^4.7.0
+  firebase_messaging: ^16.2.0
+  cloud_functions: ^6.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  riverpod_generator: ^2.4.0
+  build_runner: ^2.4.8
+  riverpod_lint: ^2.3.10
+  custom_lint: ^0.6.4
+  hive_generator: ^2.0.1
+  mocktail: ^1.0.5
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21

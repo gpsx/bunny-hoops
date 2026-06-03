@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bunny_primary">#FFB7CE</color>
+    <color name="bunny_primary_transparent">#33FFB7CE</color>
+    <color name="bunny_neutral">#8D7B7B</color>
+    <color name="bunny_background">#FFFFFF</color>
+</resources>
