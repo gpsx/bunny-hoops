@@ -18,6 +18,29 @@ exports.broadcastThoughtV1 = functions.https.onCall(async (data, context) => {
       body: body,
     },
     topic: targetTopic,
+    // Android: high priority wakes the device and uses the correct channel
+    android: {
+      priority: 'high',
+      notification: {
+        channelId: 'bunny_hoops_channel',
+        priority: 'max',
+        defaultSound: true,
+        defaultVibrateTimings: true,
+      },
+    },
+    // iOS: content-available wakes the app in background; apns-priority 10 = immediate delivery
+    apns: {
+      headers: {
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          'content-available': 1,
+          sound: 'default',
+          badge: 1,
+        },
+      },
+    },
   };
 
   try {

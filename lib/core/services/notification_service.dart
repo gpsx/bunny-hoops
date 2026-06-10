@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -57,6 +58,27 @@ class NotificationService {
         // Handle notification tap if needed
       },
     );
+
+    // Explicitly create the Android notification channel with MAX importance.
+    // This is critical: FCM background notifications use this channel ID.
+    // If the channel doesn't exist yet, Android falls back to a default
+    // low-importance channel → silent notification (no sound, no banner).
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidPlugin = _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bunny_hoops_channel',
+          'Bunny Hoops Notifications',
+          description: 'Notificações de pensamentos do casal 🐰🦦',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+    }
     
     try {
       await FirebaseMessaging.instance.requestPermission(
