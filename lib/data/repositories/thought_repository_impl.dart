@@ -33,7 +33,7 @@ class ThoughtRepositoryImpl implements ThoughtRepository {
   Future<int> calculateStreak() async {
     if (_box.isEmpty) return 0;
     
-    final thoughts = _box.values.toList()
+    final thoughts = _box.values.where((t) => t.wasSent).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
     int streak = 0;
@@ -80,12 +80,22 @@ class ThoughtRepositoryImpl implements ThoughtRepository {
     final todayThoughts = _box.values.where((t) => 
       t.createdAt.year == now.year && 
       t.createdAt.month == now.month && 
-      t.createdAt.day == now.day
+      t.createdAt.day == now.day &&
+      t.wasSent
     ).toList();
     
     if (todayThoughts.isEmpty) return null;
     
     return todayThoughts.reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b);
+  }
+
+  @override
+  Future<List<Thought>> getThoughtsForDay(DateTime day) async {
+    return _box.values.where((t) =>
+      t.createdAt.year == day.year &&
+      t.createdAt.month == day.month &&
+      t.createdAt.day == day.day,
+    ).toList();
   }
 }
 

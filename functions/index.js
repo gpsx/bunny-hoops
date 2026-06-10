@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 
 exports.broadcastThoughtV1 = functions.https.onCall(async (data, context) => {
-  const { title, body, topic } = data;
+  const { title, body, topic, imageUrl } = data;
 
   if (!title || !body) {
     throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a "title" and "body" attribute.');
@@ -16,6 +16,7 @@ exports.broadcastThoughtV1 = functions.https.onCall(async (data, context) => {
     notification: {
       title: title,
       body: body,
+      ...(imageUrl && { image: imageUrl }),
     },
     topic: targetTopic,
     // Android: high priority wakes the device and uses the correct channel
@@ -26,6 +27,7 @@ exports.broadcastThoughtV1 = functions.https.onCall(async (data, context) => {
         priority: 'max',
         defaultSound: true,
         defaultVibrateTimings: true,
+        ...(imageUrl && { imageUrl: imageUrl }),
       },
     },
     // iOS: content-available wakes the app in background; apns-priority 10 = immediate delivery

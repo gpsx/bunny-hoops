@@ -6,4 +6,5 @@ abstract class ThoughtRepository {
   Future<void> deleteThought(String id);
   Future<int> calculateStreak();
   Future<Thought?> getLastEntryToday();
+  Future<List<Thought>> getThoughtsForDay(DateTime day);
 }

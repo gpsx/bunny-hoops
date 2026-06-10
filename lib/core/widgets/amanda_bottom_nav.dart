@@ -47,6 +47,10 @@ class AmandaBottomNav extends StatelessWidget {
             icon: Icon(Icons.access_time_filled, size: AppSizes.iMedium),
             label: 'History',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_library, size: AppSizes.iMedium),
+            label: 'Gallery',
+          ),
         ],
       ),
     );

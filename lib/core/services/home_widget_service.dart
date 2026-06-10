@@ -36,8 +36,9 @@ Future<void> interactiveCallback(Uri? uri) async {
     
     final newThought = Thought(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      content: "Widget entry",
+      content: 'Estava pensando em vc meu amor!',
       createdAt: DateTime.now(),
+      isSent: true,
     );
     
     await box.add(newThought);

@@ -3,18 +3,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../../features/tracker/models/thought.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // If you're going to use other Firebase services in the background, such as Firestore,
-  // make sure you call `initializeApp` before using other Firebase services.
-  // We can just rely on the OS to display the background notification since we send notification payloads.
+  // Save received message to Hive so it appears in chat history
+  // even when the app is fully closed.
+  if (message.notification == null) return;
+
+  await Hive.initFlutter();
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(ThoughtAdapter());
+  }
+
+  final box = await Hive.openBox<Thought>('thoughts');
+
+  final String? imageUrl = message.notification?.android?.imageUrl ?? message.data['image'];
+
+  final received = Thought(
+    id: '${DateTime.now().millisecondsSinceEpoch}_recv',
+    content: message.notification!.body ?? '',
+    createdAt: DateTime.now(),
+    isSent: false,
+    imageUrl: imageUrl,
+  );
+
+  await box.add(received);
+  await box.close();
 }
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
-  
+
   bool _isInitialized = false;
 
   Future<void> updateTopicSubscription(String profile) async {
@@ -22,15 +44,15 @@ class NotificationService {
       // If I am 'dado', I listen to 'coelho_thoughts'.
       // If I am 'coelho', I listen to 'dado_thoughts'.
       final listenTopic = profile == 'dado' ? 'coelho_thoughts' : 'dado_thoughts';
-      
+
       await FirebaseMessaging.instance.unsubscribeFromTopic('couple_thoughts');
       await FirebaseMessaging.instance.unsubscribeFromTopic('dado_thoughts');
       await FirebaseMessaging.instance.unsubscribeFromTopic('coelho_thoughts');
-      
+
       await FirebaseMessaging.instance.subscribeToTopic(listenTopic);
     } catch (e) {
       // ignore: avoid_print
-      print("Failed to update FCM topic subscription: $e");
+      print('Failed to update FCM topic subscription: $e');
     }
   }
 
@@ -60,9 +82,8 @@ class NotificationService {
     );
 
     // Explicitly create the Android notification channel with MAX importance.
-    // This is critical: FCM background notifications use this channel ID.
-    // If the channel doesn't exist yet, Android falls back to a default
-    // low-importance channel → silent notification (no sound, no banner).
+    // FCM background notifications use this channel ID; without it, Android
+    // falls back to a low-importance channel → silent notification.
     if (defaultTargetPlatform == TargetPlatform.android) {
       final androidPlugin = _notificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -79,23 +100,40 @@ class NotificationService {
         ),
       );
     }
-    
+
     try {
       await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
-      
+
       await updateTopicSubscription(currentProfile);
 
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
         if (message.notification != null) {
+          // Show the local notification banner while app is in foreground
           showNotification(
             id: message.hashCode,
             title: message.notification!.title ?? 'Bunny Hoops',
             body: message.notification!.body ?? '',
           );
+
+          // Save received message to Hive for chat history (foreground path)
+          try {
+            final String? imageUrl = message.notification?.android?.imageUrl ?? message.data['image'];
+            final box = Hive.box<Thought>('thoughts');
+            final received = Thought(
+              id: '${DateTime.now().millisecondsSinceEpoch}_recv',
+              content: message.notification!.body ?? '',
+              createdAt: DateTime.now(),
+              isSent: false,
+              imageUrl: imageUrl,
+            );
+            await box.add(received);
+          } catch (e) {
+            debugPrint('Failed to save received thought to Hive: $e');
+          }
         }
       });
     } catch (e) {
@@ -110,9 +148,6 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
-    // initialize must be called with a profile from main.dart now
-    // await initialize();
-
     const AndroidNotificationDetails androidNotificationDetails =
         AndroidNotificationDetails(
       'bunny_hoops_channel',

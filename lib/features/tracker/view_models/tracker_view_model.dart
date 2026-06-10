@@ -5,8 +5,10 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../../../data/repositories/thought_repository_impl.dart';
 import '../models/thought.dart';
 
+import 'package:image_picker/image_picker.dart';
 import '../../../core/services/home_widget_service.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../data/repositories/settings_repository.dart';
 
 part 'tracker_view_model.g.dart';
@@ -15,22 +17,30 @@ class TrackerState {
   final int count;
   final int streak;
   final String lastEntry;
+  final String? selectedImagePath;
+  final bool isLoading;
 
   TrackerState({
     required this.count,
     required this.streak,
     required this.lastEntry,
+    this.selectedImagePath,
+    this.isLoading = false,
   });
 
   TrackerState copyWith({
     int? count,
     int? streak,
     String? lastEntry,
+    String? selectedImagePath,
+    bool? isLoading,
   }) {
     return TrackerState(
       count: count ?? this.count,
       streak: streak ?? this.streak,
       lastEntry: lastEntry ?? this.lastEntry,
+      selectedImagePath: selectedImagePath ?? this.selectedImagePath,
+      isLoading: isLoading ?? this.isLoading,
     );
   }
 }
@@ -67,22 +77,77 @@ class TrackerViewModel extends _$TrackerViewModel with WidgetsBindingObserver {
   }
 
   Future<void> _refreshStats() async {
+    final currentState = state.valueOrNull;
     state = const AsyncLoading();
-    state = AsyncData(await _fetchCurrentStats());
+    final newStats = await _fetchCurrentStats();
+    state = AsyncData(newStats.copyWith(selectedImagePath: currentState?.selectedImagePath));
+  }
+
+  Future<void> pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source, imageQuality: 70);
+    if (pickedFile != null) {
+      final currentState = state.valueOrNull;
+      if (currentState != null) {
+        state = AsyncData(currentState.copyWith(selectedImagePath: pickedFile.path));
+      }
+    }
+  }
+
+  void removeSelectedImage() {
+    final currentState = state.valueOrNull;
+    if (currentState != null) {
+      // We pass a null specifically, but copyWith ignores nulls unless we do a trick.
+      // Let's modify the state directly:
+      state = AsyncData(TrackerState(
+        count: currentState.count,
+        streak: currentState.streak,
+        lastEntry: currentState.lastEntry,
+        selectedImagePath: null,
+        isLoading: currentState.isLoading,
+      ));
+    }
   }
 
   Future<void> recordNewThought({String? message}) async {
     final repository = ref.read(thoughtRepositoryProvider);
+
+    const defaultContent = 'Estava pensando em vc meu amor!';
+    final content = (message != null && message.trim().isNotEmpty)
+        ? message.trim()
+        : defaultContent;
     
+    final thoughtId = DateTime.now().millisecondsSinceEpoch.toString();
+    final currentState = state.valueOrNull;
+    final imageToUpload = currentState?.selectedImagePath;
+
+    if (currentState != null) {
+      state = AsyncData(TrackerState(
+        count: currentState.count,
+        streak: currentState.streak,
+        lastEntry: currentState.lastEntry,
+        selectedImagePath: null,
+        isLoading: true,
+      ));
+    }
+
+    String? imageUrl;
+    if (imageToUpload != null) {
+      final storageService = ref.read(storageServiceProvider);
+      imageUrl = await storageService.uploadImage(imageToUpload, thoughtId);
+    }
+
     final newThought = Thought(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      content: "Lovely thought",
+      id: thoughtId,
+      content: content,
       createdAt: DateTime.now(),
+      isSent: true,
+      imageUrl: imageUrl,
     );
 
     await repository.saveThought(newThought);
     final stats = await _fetchCurrentStats();
-    state = AsyncData(stats);
+    state = AsyncData(stats); // This naturally clears selectedImagePath because _fetchCurrentStats doesn't include it.
     await HomeWidgetService.updateData(stats.count);
 
     // Dynamic Notifications logic
@@ -92,10 +157,9 @@ class TrackerViewModel extends _$TrackerViewModel with WidgetsBindingObserver {
     String title = activeProfile == 'coelho'
         ? "Sarky esta pensando em vc ❤️🦦🤘"
         : "Amandinha esta pensando em vc ❤️🐰🤘";
-        
-    String body = (message != null && message.trim().isNotEmpty)
-        ? message.trim()
-        : "Oi meu amor tava pensando em vc agorinha, te amo mt";
+
+    // Notification body mirrors what is stored locally
+    final String body = content;
 
     // If I am 'dado' (Sarky/lontra), I send to coelho_thoughts so Amandinha receives.
     // If I am 'coelho' (Amandinha), I send to dado_thoughts so Sarky receives.
@@ -107,6 +171,7 @@ class TrackerViewModel extends _$TrackerViewModel with WidgetsBindingObserver {
         'title': title,
         'body': body,
         'topic': sendTopic,
+        if (imageUrl != null) 'imageUrl': imageUrl,
       });
     } catch (e) {
       debugPrint("Failed to broadcast notification: $e");
@@ -117,6 +182,11 @@ class TrackerViewModel extends _$TrackerViewModel with WidgetsBindingObserver {
         title: title,
         body: body,
       );
+    } finally {
+      final finalState = state.valueOrNull;
+      if (finalState != null) {
+        state = AsyncData(finalState.copyWith(isLoading: false));
+      }
     }
   }
 
@@ -128,7 +198,8 @@ class TrackerViewModel extends _$TrackerViewModel with WidgetsBindingObserver {
     final todayCount = thoughts.where((t) => 
       t.createdAt.year == now.year && 
       t.createdAt.month == now.month && 
-      t.createdAt.day == now.day
+      t.createdAt.day == now.day &&
+      t.wasSent
     ).length;
 
     final lastEntry = await repository.getLastEntryToday();

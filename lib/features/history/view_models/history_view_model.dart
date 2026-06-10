@@ -7,23 +7,28 @@ part 'history_view_model.g.dart';
 class DayAggregate {
   final String dateLabel;
   final int count;
+  final DateTime date;
+  final bool hasMessages;
 
   DayAggregate({
     required this.dateLabel,
     required this.count,
+    required this.date,
+    required this.hasMessages,
   });
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-  
     return other is DayAggregate &&
       other.dateLabel == dateLabel &&
-      other.count == count;
+      other.count == count &&
+      other.date == date &&
+      other.hasMessages == hasMessages;
   }
 
   @override
-  int get hashCode => dateLabel.hashCode ^ count.hashCode;
+  int get hashCode => dateLabel.hashCode ^ count.hashCode ^ date.hashCode;
 }
 
 class HistoryState {
@@ -57,10 +62,7 @@ class HistoryViewModel extends _$HistoryViewModel {
     final repository = ref.read(thoughtRepositoryProvider);
     final thoughts = await repository.getThoughts();
 
-    // 1. Total thoughts calculation
-    final totalThoughts = thoughts.length;
-
-    // 2. Date grouping logic
+    final totalThoughts = thoughts.where((t) => t.wasSent).length;
     final groupedHistory = _groupThoughtsByDate(thoughts);
 
     return HistoryState(
@@ -72,31 +74,50 @@ class HistoryViewModel extends _$HistoryViewModel {
   List<DayAggregate> _groupThoughtsByDate(List<Thought> thoughts) {
     if (thoughts.isEmpty) return [];
 
-    // Sort descending by date first
+    // Sort descending (most recent first)
     final sortedThoughts = List<Thought>.from(thoughts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final Map<String, int> dateCounts = {};
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
+    // LinkedHashMap preserves insertion order (most-recent-first)
+    final Map<String, ({int count, DateTime date, bool hasMessages})> grouped = {};
+
     for (var thought in sortedThoughts) {
-      final tDate = DateTime(thought.createdAt.year, thought.createdAt.month, thought.createdAt.day);
-      
+      final tDate = DateTime(
+        thought.createdAt.year,
+        thought.createdAt.month,
+        thought.createdAt.day,
+      );
+
       String label;
       if (tDate == today) {
-        label = "Today";
+        label = 'Today';
       } else if (tDate == yesterday) {
-        label = "Yesterday";
+        label = 'Yesterday';
       } else {
         label = _formatDate(tDate);
       }
 
-      dateCounts[label] = (dateCounts[label] ?? 0) + 1;
+      final existing = grouped[label];
+      grouped[label] = (
+        count: (existing?.count ?? 0) + (thought.wasSent ? 1 : 0),
+        date: existing?.date ?? tDate,
+        // hasMessages = true if any thought in this day has isSent set (new format)
+        hasMessages: (existing?.hasMessages ?? false) || (thought.isSent != null),
+      );
     }
 
-    return dateCounts.entries.map((e) => DayAggregate(dateLabel: e.key, count: e.value)).toList();
+    return grouped.entries
+        .map((e) => DayAggregate(
+              dateLabel: e.key,
+              count: e.value.count,
+              date: e.value.date,
+              hasMessages: e.value.hasMessages,
+            ))
+        .toList();
   }
 
   String _formatDate(DateTime date) {

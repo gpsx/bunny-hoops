@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_values.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
@@ -69,15 +71,19 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
                     DailyCounterDisplay(count: state.count),
                     const Spacer(),
                     BunnyRecordButton(
+                      isLoading: state.isLoading,
                       onPressed: () async {
-                        await ref.read(trackerViewModelProvider.notifier).recordNewThought(message: _messageController.text);
+                        final text = _messageController.text;
                         _messageController.clear();
+                        FocusScope.of(context).unfocus(); // Also dismiss keyboard
+                        await ref.read(trackerViewModelProvider.notifier).recordNewThought(message: text);
                       },
                     ),
                     const SizedBox(height: AppSizes.p24),
                     TextField(
                       controller: _messageController,
                       maxLength: 100,
+                      readOnly: state.isLoading,
                       decoration: InputDecoration(
                         hintText: AppStrings.customMessageHint,
                         filled: true,
@@ -87,8 +93,66 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.p20, vertical: AppSizes.p16),
-                        counterText: '', // Hide counter
+                        counterText: '',
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.camera_alt_rounded),
+                              color: Theme.of(context).colorScheme.primary,
+                              onPressed: state.isLoading ? null : () => ref.read(trackerViewModelProvider.notifier).pickImage(ImageSource.camera),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.photo_library_rounded),
+                              color: Theme.of(context).colorScheme.primary,
+                              onPressed: state.isLoading ? null : () => ref.read(trackerViewModelProvider.notifier).pickImage(ImageSource.gallery),
+                            ),
+                            const SizedBox(width: AppSizes.p8),
+                          ],
+                        ),
                       ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return FadeTransition(opacity: animation, child: SizeTransition(sizeFactor: animation, child: child));
+                      },
+                      child: state.selectedImagePath != null
+                          ? Column(
+                              key: const ValueKey('image_preview'),
+                              children: [
+                                const SizedBox(height: AppSizes.p16),
+                                Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(AppSizes.rCard),
+                                      child: Image.file(
+                                        File(state.selectedImagePath!),
+                                        height: 120,
+                                        width: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: AppSizes.p8,
+                                      right: AppSizes.p8,
+                                      child: GestureDetector(
+                                        onTap: state.isLoading ? null : () => ref.read(trackerViewModelProvider.notifier).removeSelectedImage(),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(AppSizes.p4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.close, color: Colors.white, size: AppSizes.iSmall),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(key: ValueKey('empty_preview')),
                     ),
                     const Spacer(),
                     _buildMetricsRow(state),
@@ -97,7 +161,7 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
                 ),
               ),
             ],
-          ),
+        ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),

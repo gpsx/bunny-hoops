@@ -6,11 +6,13 @@ import '../constants/app_values.dart';
 class BunnyRecordButton extends StatefulWidget {
   final VoidCallback onPressed;
   final String label;
+  final bool isLoading;
 
   const BunnyRecordButton({
     super.key,
     required this.onPressed,
     this.label = 'Record Thought',
+    this.isLoading = false,
   });
 
   @override
@@ -21,6 +23,7 @@ class _BunnyRecordButtonState extends State<BunnyRecordButton> {
   double _scale = 1.0;
 
   void _onTapDown(TapDownDetails details) {
+    if (widget.isLoading) return;
     setState(() => _scale = 0.92);
   }
 
@@ -41,7 +44,7 @@ class _BunnyRecordButtonState extends State<BunnyRecordButton> {
           onTapDown: _onTapDown,
           onTapUp: _onTapUp,
           onTapCancel: _onTapCancel,
-          onTap: widget.onPressed,
+          onTap: widget.isLoading ? null : widget.onPressed,
           child: AnimatedScale(
             scale: _scale,
             duration: const Duration(milliseconds: 100),
@@ -50,9 +53,11 @@ class _BunnyRecordButtonState extends State<BunnyRecordButton> {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
+                color: widget.isLoading 
+                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12)
+                    : Theme.of(context).colorScheme.primary,
                 shape: BoxShape.circle,
-                boxShadow: [
+                boxShadow: widget.isLoading ? [] : [
                   BoxShadow(
                     color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                     blurRadius: 20,
@@ -60,11 +65,19 @@ class _BunnyRecordButtonState extends State<BunnyRecordButton> {
                   ),
                 ],
               ),
-              child: Icon(
-                Icons.pets, // Bunny icon proxy
-                size: 60,
-                color: Theme.of(context).colorScheme.onPrimary,
-              ),
+              child: widget.isLoading 
+                ? Padding(
+                    padding: const EdgeInsets.all(40.0),
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      strokeWidth: 4,
+                    ),
+                  )
+                : Icon(
+                    Icons.pets,
+                    size: 60,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
             ),
           ),
         ),
