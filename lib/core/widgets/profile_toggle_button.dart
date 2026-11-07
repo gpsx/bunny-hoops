@@ -8,14 +8,13 @@ class ProfileToggleButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeProfile = ref.watch(profileNotifierProvider);
-    final isDado = activeProfile == 'dado';
 
     return IconButton(
       icon: Text(
-        isDado ? '🐰' : '🦦',
+        activeProfile.icon,
         style: const TextStyle(fontSize: 24),
       ),
-      tooltip: 'Switch profile',
+      tooltip: 'Perfil ativo: ${activeProfile.displayName}. Toque para trocar.',
       onPressed: () {
         ref.read(profileNotifierProvider.notifier).toggleProfile();
       },

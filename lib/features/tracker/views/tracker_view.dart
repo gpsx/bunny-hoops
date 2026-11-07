@@ -164,7 +164,7 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
         ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) => Center(child: Text('${AppStrings.errorPrefix}: $err')),
       ),
     );
   }
@@ -174,7 +174,7 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
       children: [
         Expanded(
           child: MetricCard(
-            label: 'Last entry',
+            label: AppStrings.lastEntry,
             value: state.lastEntry,
             icon: Icons.access_time,
           ),
@@ -182,7 +182,7 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
         const SizedBox(width: AppSizes.p16),
         Expanded(
           child: MetricCard(
-            label: 'Streak',
+            label: AppStrings.streak,
             value: '${state.streak} Days',
             icon: Icons.trending_up,
           ),
@@ -191,4 +191,3 @@ class _TrackerViewState extends ConsumerState<TrackerView> {
     );
   }
 }
-

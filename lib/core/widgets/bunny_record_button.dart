@@ -11,7 +11,7 @@ class BunnyRecordButton extends StatefulWidget {
   const BunnyRecordButton({
     super.key,
     required this.onPressed,
-    this.label = 'Record Thought',
+    this.label = 'Registrar pensamento',
     this.isLoading = false,
   });
 

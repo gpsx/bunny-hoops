@@ -30,6 +30,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="bunny_hoops_channel_v2" />
 
         <receiver android:name=".WidgetProvider" android:exported="true">
             <intent-filter>

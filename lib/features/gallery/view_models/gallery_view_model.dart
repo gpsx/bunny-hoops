@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../tracker/models/thought.dart';
 import '../../../data/repositories/thought_repository_impl.dart';
+import '../../../data/providers/thoughts_provider.dart';
 
 part 'gallery_view_model.g.dart';
 
@@ -35,15 +36,28 @@ class GalleryViewModel extends _$GalleryViewModel {
 
   @override
   FutureOr<GalleryState> build() async {
+    ref.listen(thoughtsProvider, (_, next) {
+      if (next.hasValue) {
+        ref.invalidateSelf();
+      }
+    });
     final repository = ref.watch(thoughtRepositoryProvider);
     final allThoughts = await repository.getThoughts();
-    
+
     // Filter only thoughts with images and sort most recent first
-    _allPhotos = allThoughts.where((t) => t.imageUrl != null && t.imageUrl!.isNotEmpty).toList()
+    final displayedImageUrls = <String>{};
+    _allPhotos = allThoughts
+        .where((thought) {
+          final imageUrl = thought.imageUrl;
+          return imageUrl != null &&
+              imageUrl.isNotEmpty &&
+              displayedImageUrls.add(imageUrl);
+        })
+        .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final initialPhotos = _allPhotos.take(_pageSize).toList();
-    
+
     return GalleryState(
       photos: initialPhotos,
       hasMore: _allPhotos.length > _pageSize,
@@ -53,10 +67,12 @@ class GalleryViewModel extends _$GalleryViewModel {
 
   Future<void> loadMore() async {
     final currentState = state.valueOrNull;
-    if (currentState == null || !currentState.hasMore || currentState.isLoadingMore) return;
+    if (currentState == null ||
+        !currentState.hasMore ||
+        currentState.isLoadingMore) return;
 
     state = AsyncData(currentState.copyWith(isLoadingMore: true));
-    
+
     // Simulate a tiny delay for smooth UX
     await Future.delayed(const Duration(milliseconds: 300));
 

@@ -22,7 +22,7 @@ class TotalThoughtsCard extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'TOTAL THOUGHTS',
+            'TOTAL DE PENSAMENTOS',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
@@ -51,7 +51,7 @@ class TotalThoughtsCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.p8),
           Text(
-            'Precious moments recorded',
+            'Momentos especiais registrados',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                 ),

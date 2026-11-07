@@ -22,6 +22,10 @@ dependencies:
   firebase_storage: ^13.4.2
   image_picker: ^1.2.2
   cached_network_image: ^3.4.1
+  firebase_auth: ^6.7.1
+  cloud_firestore: ^6.10.2
+  share_plus: ^13.3.1
+  file_picker: ^13.3.2
 
 dev_dependencies:
   flutter_test:

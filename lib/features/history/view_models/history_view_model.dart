@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../data/repositories/thought_repository_impl.dart';
+import '../../../data/providers/thoughts_provider.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../tracker/models/thought.dart';
 
 part 'history_view_model.g.dart';
@@ -21,10 +23,10 @@ class DayAggregate {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is DayAggregate &&
-      other.dateLabel == dateLabel &&
-      other.count == count &&
-      other.date == date &&
-      other.hasMessages == hasMessages;
+        other.dateLabel == dateLabel &&
+        other.count == count &&
+        other.date == date &&
+        other.hasMessages == hasMessages;
   }
 
   @override
@@ -55,13 +57,17 @@ class HistoryState {
 class HistoryViewModel extends _$HistoryViewModel {
   @override
   FutureOr<HistoryState> build() async {
+    ref.listen(thoughtsProvider, (_, next) {
+      if (next.hasValue) {
+        ref.invalidateSelf();
+      }
+    });
     return _fetchHistory();
   }
 
   Future<HistoryState> _fetchHistory() async {
     final repository = ref.read(thoughtRepositoryProvider);
     final thoughts = await repository.getThoughts();
-
     final totalThoughts = thoughts.where((t) => t.wasSent).length;
     final groupedHistory = _groupThoughtsByDate(thoughts);
 
@@ -83,7 +89,8 @@ class HistoryViewModel extends _$HistoryViewModel {
     final yesterday = today.subtract(const Duration(days: 1));
 
     // LinkedHashMap preserves insertion order (most-recent-first)
-    final Map<String, ({int count, DateTime date, bool hasMessages})> grouped = {};
+    final Map<String, ({int count, DateTime date, bool hasMessages})> grouped =
+        {};
 
     for (var thought in sortedThoughts) {
       final tDate = DateTime(
@@ -94,9 +101,9 @@ class HistoryViewModel extends _$HistoryViewModel {
 
       String label;
       if (tDate == today) {
-        label = 'Today';
+        label = AppStrings.today;
       } else if (tDate == yesterday) {
-        label = 'Yesterday';
+        label = AppStrings.yesterday;
       } else {
         label = _formatDate(tDate);
       }
@@ -106,7 +113,8 @@ class HistoryViewModel extends _$HistoryViewModel {
         count: (existing?.count ?? 0) + (thought.wasSent ? 1 : 0),
         date: existing?.date ?? tDate,
         // hasMessages = true if any thought in this day has isSent set (new format)
-        hasMessages: (existing?.hasMessages ?? false) || (thought.isSent != null),
+        hasMessages:
+            (existing?.hasMessages ?? false) || (thought.isSent != null),
       );
     }
 
@@ -122,10 +130,20 @@ class HistoryViewModel extends _$HistoryViewModel {
 
   String _formatDate(DateTime date) {
     const monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'jan',
+      'fev',
+      'mar',
+      'abr',
+      'mai',
+      'jun',
+      'jul',
+      'ago',
+      'set',
+      'out',
+      'nov',
+      'dez'
     ];
     final month = monthNames[date.month - 1];
-    return '$month ${date.day}';
+    return '${date.day} de $month';
   }
 }

@@ -48,7 +48,7 @@ class HistoryView extends ConsumerWidget {
               Row(
                 children: [
                   Text(
-                    'HISTORY',
+                    'HISTÓRICO',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: Theme.of(context)
                               .colorScheme
@@ -75,7 +75,7 @@ class HistoryView extends ConsumerWidget {
                 child: state.groupedHistory.isEmpty
                     ? Center(
                         child: Text(
-                          'No records yet.\nStart tracking your thoughts!',
+                          'Ainda não há registros.\nComece a registrar seus pensamentos!',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                 color: Theme.of(context)
@@ -125,7 +125,7 @@ class HistoryView extends ConsumerWidget {
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) => Center(child: Text('Erro: $err')),
       ),
     );
   }

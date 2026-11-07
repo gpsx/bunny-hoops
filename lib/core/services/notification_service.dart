@@ -1,62 +1,77 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../../features/tracker/models/thought.dart';
+import '../constants/app_strings.dart';
+import '../models/profile.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Save received message to Hive so it appears in chat history
-  // even when the app is fully closed.
-  if (message.notification == null) return;
-
-  await Hive.initFlutter();
-  if (!Hive.isAdapterRegistered(0)) {
-    Hive.registerAdapter(ThoughtAdapter());
-  }
-
-  final box = await Hive.openBox<Thought>('thoughts');
-
-  final String? imageUrl = message.notification?.android?.imageUrl ?? message.data['image'];
-
-  final received = Thought(
-    id: '${DateTime.now().millisecondsSinceEpoch}_recv',
-    content: message.notification!.body ?? '',
-    createdAt: DateTime.now(),
-    isSent: false,
-    imageUrl: imageUrl,
-  );
-
-  await box.add(received);
-  await box.close();
+  debugPrint(
+      '[BH] background message: from=${message.from} body=${message.notification?.body}');
+  // Firestore synchronization imports the thought when the app resumes.
+  // Writing Hive from a background isolate races the foreground sync isolate.
 }
 
 class NotificationService {
+  static const _fcmRegistrationVersion = 2;
+  static const _fcmRegistrationVersionKey = 'fcm_registration_version';
+
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
 
-  Future<void> updateTopicSubscription(String profile) async {
+  Future<void> updateTopicSubscription(Profile profile) async {
     try {
-      // If I am 'dado', I listen to 'coelho_thoughts'.
-      // If I am 'coelho', I listen to 'dado_thoughts'.
-      final listenTopic = profile == 'dado' ? 'coelho_thoughts' : 'dado_thoughts';
+      final listenTopics = profile.subscriptionTopics;
 
-      await FirebaseMessaging.instance.unsubscribeFromTopic('couple_thoughts');
-      await FirebaseMessaging.instance.unsubscribeFromTopic('dado_thoughts');
-      await FirebaseMessaging.instance.unsubscribeFromTopic('coelho_thoughts');
+      debugPrint(
+        '[BH] profile=${profile.storageValue} -> will listen to "$listenTopics"',
+      );
 
-      await FirebaseMessaging.instance.subscribeToTopic(listenTopic);
+      for (final t in [
+        'couple_thoughts',
+        'dado_thoughts',
+        'lontra_thoughts',
+        'coelho_thoughts'
+      ]) {
+        if (listenTopics.contains(t)) continue;
+        try {
+          await FirebaseMessaging.instance.unsubscribeFromTopic(t);
+        } catch (e) {
+          debugPrint('[BH] unsubscribe "$t" failed: $e');
+        }
+      }
+
+      final settings = Hive.box('settings');
+      final registeredVersion = settings.get(_fcmRegistrationVersionKey);
+      if (registeredVersion != _fcmRegistrationVersion) {
+        debugPrint('[BH] refreshing stale FCM registration');
+        await FirebaseMessaging.instance.deleteToken();
+      }
+
+      // Re-register the selected topic after profile changes and app updates.
+      // FCM treats the operation as idempotent and this clears a stale device
+      // registration without deleting the user's local app data.
+      for (final topic in listenTopics) {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        await FirebaseMessaging.instance.subscribeToTopic(topic);
+      }
+      final token = await FirebaseMessaging.instance.getToken();
+      await settings.put(_fcmRegistrationVersionKey, _fcmRegistrationVersion);
+      debugPrint('[BH] subscribed to "$listenTopics" OK. FCM token=$token');
     } catch (e) {
-      // ignore: avoid_print
-      print('Failed to update FCM topic subscription: $e');
+      debugPrint('[BH] Failed to update FCM topic subscription: $e');
     }
   }
 
-  Future<void> initialize(String currentProfile) async {
+  Future<void> initialize(Profile currentProfile) async {
     if (_isInitialized) return;
 
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -69,7 +84,8 @@ class NotificationService {
       requestSoundPermission: true,
     );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
@@ -85,14 +101,14 @@ class NotificationService {
     // FCM background notifications use this channel ID; without it, Android
     // falls back to a low-importance channel → silent notification.
     if (defaultTargetPlatform == TargetPlatform.android) {
-      final androidPlugin = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
+      final androidPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(
         const AndroidNotificationChannel(
-          'bunny_hoops_channel',
-          'Bunny Hoops Notifications',
-          description: 'Notificações de pensamentos do casal 🐰🦦',
+          AppStrings.notificationChannelId,
+          AppStrings.notificationChannelName,
+          description: AppStrings.notificationChannelDescription,
           importance: Importance.max,
           playSound: true,
           enableVibration: true,
@@ -111,29 +127,18 @@ class NotificationService {
       await updateTopicSubscription(currentProfile);
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+        debugPrint(
+            '[BH] onMessage received: from=${message.from} title=${message.notification?.title} body=${message.notification?.body}');
         if (message.notification != null) {
           // Show the local notification banner while app is in foreground
-          showNotification(
+          await showNotification(
             id: message.hashCode,
-            title: message.notification!.title ?? 'Bunny Hoops',
+            title: message.notification!.title ??
+                AppStrings.notificationFallbackTitle,
             body: message.notification!.body ?? '',
+            imageUrl: message.notification?.android?.imageUrl ??
+                message.data['image'],
           );
-
-          // Save received message to Hive for chat history (foreground path)
-          try {
-            final String? imageUrl = message.notification?.android?.imageUrl ?? message.data['image'];
-            final box = Hive.box<Thought>('thoughts');
-            final received = Thought(
-              id: '${DateTime.now().millisecondsSinceEpoch}_recv',
-              content: message.notification!.body ?? '',
-              createdAt: DateTime.now(),
-              isSent: false,
-              imageUrl: imageUrl,
-            );
-            await box.add(received);
-          } catch (e) {
-            debugPrint('Failed to save received thought to Hive: $e');
-          }
         }
       });
     } catch (e) {
@@ -147,20 +152,29 @@ class NotificationService {
     required int id,
     required String title,
     required String body,
+    String? imageUrl,
   }) async {
-    const AndroidNotificationDetails androidNotificationDetails =
-        AndroidNotificationDetails(
-      'bunny_hoops_channel',
-      'Bunny Hoops Notifications',
-      channelDescription: 'Notifications for tracked thoughts',
+    final imageBytes =
+        imageUrl == null ? null : await _downloadNotificationImage(imageUrl);
+    final androidNotificationDetails = AndroidNotificationDetails(
+      AppStrings.notificationChannelId,
+      AppStrings.notificationChannelName,
+      channelDescription: AppStrings.notificationChannelDescription,
       importance: Importance.max,
       priority: Priority.high,
       icon: '@mipmap/ic_launcher',
+      styleInformation: imageBytes == null
+          ? null
+          : BigPictureStyleInformation(
+              ByteArrayAndroidBitmap(imageBytes),
+              contentTitle: title,
+              summaryText: body,
+            ),
     );
 
-    const NotificationDetails notificationDetails = NotificationDetails(
+    final notificationDetails = NotificationDetails(
       android: androidNotificationDetails,
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(),
     );
 
     await _notificationsPlugin.show(
@@ -169,6 +183,37 @@ class NotificationService {
       body: body,
       notificationDetails: notificationDetails,
     );
+  }
+
+  Future<Uint8List?> _downloadNotificationImage(String imageUrl) async {
+    final client = HttpClient();
+    try {
+      final request =
+          await client.getUrl(Uri.parse(imageUrl)).timeout(const Duration(seconds: 10));
+      final response = await request.close().timeout(const Duration(seconds: 10));
+      if (response.statusCode != HttpStatus.ok) {
+        debugPrint(
+            '[BH] notification image download failed: HTTP ${response.statusCode}');
+        return null;
+      }
+
+      final bytes = await response.fold<List<int>>(
+        <int>[],
+        (buffer, chunk) => buffer..addAll(chunk),
+      ).timeout(const Duration(seconds: 10));
+      return Uint8List.fromList(bytes);
+    } on FormatException catch (error) {
+      debugPrint('[BH] notification image URL is invalid: $error');
+    } on HttpException catch (error) {
+      debugPrint('[BH] notification image download failed: $error');
+    } on SocketException catch (error) {
+      debugPrint('[BH] notification image download failed: $error');
+    } on TimeoutException {
+      debugPrint('[BH] notification image download timed out');
+    } finally {
+      client.close(force: true);
+    }
+    return null;
   }
 }
 

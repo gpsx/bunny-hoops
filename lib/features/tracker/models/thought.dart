@@ -16,6 +16,8 @@ class Thought extends HiveObject {
   final bool? isSent;
   @HiveField(5)
   final String? imageUrl;
+  @HiveField(6)
+  final String? senderProfile;
 
   Thought({
     required this.id,
@@ -24,6 +26,7 @@ class Thought extends HiveObject {
     this.tags = const [],
     this.isSent,
     this.imageUrl,
+    this.senderProfile,
   });
 
   /// Old records (isSent == null) are treated as sent.
@@ -36,6 +39,7 @@ class Thought extends HiveObject {
     List<String>? tags,
     bool? isSent,
     String? imageUrl,
+    String? senderProfile,
   }) {
     return Thought(
       id: id ?? this.id,
@@ -44,7 +48,7 @@ class Thought extends HiveObject {
       tags: tags ?? this.tags,
       isSent: isSent ?? this.isSent,
       imageUrl: imageUrl ?? this.imageUrl,
+      senderProfile: senderProfile ?? this.senderProfile,
     );
   }
 }
-

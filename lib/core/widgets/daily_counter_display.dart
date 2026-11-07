@@ -10,7 +10,7 @@ class DailyCounterDisplay extends StatelessWidget {
   const DailyCounterDisplay({
     super.key,
     required this.count,
-    this.label = 'Lovely thoughts captured today',
+    this.label = 'Pensamentos registrados hoje',
   });
 
   @override

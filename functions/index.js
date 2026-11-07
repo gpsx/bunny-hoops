@@ -4,7 +4,7 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 
 exports.broadcastThoughtV1 = functions.https.onCall(async (data, context) => {
-  const { title, body, topic, imageUrl } = data;
+  const { title, body, topic, imageUrl, thoughtId, senderProfile } = data;
 
   if (!title || !body) {
     throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a "title" and "body" attribute.');
@@ -19,11 +19,16 @@ exports.broadcastThoughtV1 = functions.https.onCall(async (data, context) => {
       ...(imageUrl && { image: imageUrl }),
     },
     topic: targetTopic,
+    data: {
+      ...(thoughtId && { thoughtId: String(thoughtId) }),
+      ...(senderProfile && { senderProfile: String(senderProfile) }),
+      ...(imageUrl && { image: imageUrl }),
+    },
     // Android: high priority wakes the device and uses the correct channel
     android: {
       priority: 'high',
       notification: {
-        channelId: 'bunny_hoops_channel',
+        channelId: 'bunny_hoops_channel_v2',
         priority: 'max',
         defaultSound: true,
         defaultVibrateTimings: true,

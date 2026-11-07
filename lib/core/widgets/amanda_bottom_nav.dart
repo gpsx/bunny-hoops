@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../constants/app_values.dart';
+import '../constants/app_strings.dart';
 
 class AmandaBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -41,15 +42,19 @@ class AmandaBottomNav extends StatelessWidget {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite, size: AppSizes.iMedium),
-            label: 'Tracker',
+            label: AppStrings.tracker,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.access_time_filled, size: AppSizes.iMedium),
-            label: 'History',
+            label: AppStrings.historyTitle,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.photo_library, size: AppSizes.iMedium),
-            label: 'Gallery',
+            label: AppStrings.gallery,
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings, size: AppSizes.iMedium),
+            label: AppStrings.settings,
           ),
         ],
       ),

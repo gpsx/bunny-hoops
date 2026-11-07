@@ -3,6 +3,7 @@ import '../../../core/widgets/amanda_bottom_nav.dart';
 import '../../tracker/views/tracker_view.dart';
 import '../../history/views/history_view.dart';
 import '../../gallery/views/gallery_view.dart';
+import '../../settings/views/settings_view.dart';
 
 class MainView extends StatefulWidget {
   const MainView({super.key});
@@ -19,6 +20,7 @@ class _MainViewState extends State<MainView> {
     TrackerView(),
     HistoryView(),
     GalleryView(),
+    SettingsView(),
   ];
 
   @override

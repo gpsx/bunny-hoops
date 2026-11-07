@@ -65,7 +65,7 @@ class _GalleryViewState extends ConsumerState<GalleryView> {
           if (state.photos.isEmpty) {
             return Center(
               child: Text(
-                'No photos yet.\nStart sharing moments!',
+                'Ainda não há fotos.\nComece a compartilhar momentos!',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -81,7 +81,7 @@ class _GalleryViewState extends ConsumerState<GalleryView> {
                 child: Row(
                   children: [
                     Text(
-                      'GALLERY',
+                      'GALERIA',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             color: Theme.of(context)
                                 .colorScheme
@@ -163,7 +163,7 @@ class _GalleryViewState extends ConsumerState<GalleryView> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        error: (err, stack) => Center(child: Text('Erro: $err')),
       ),
     );
   }
