@@ -42,13 +42,18 @@ void main() async {
     if (rawProfile != savedProfile.storageValue) {
       await settingsBox.put('active_profile', savedProfile.storageValue);
     }
+    final settings = SettingsRepositoryImpl(settingsBox);
+    if (rawProfile == null &&
+        savedProfile == Profile.coelho &&
+        !settings.hasAnnouncedCoelhoInstallation()) {
+      await settings.markCoelhoInstallationAnnouncementPending();
+    }
+    shouldAnnounceCoelhoInstallation =
+        settings.hasPendingCoelhoInstallationAnnouncement() &&
+        !settings.hasAnnouncedCoelhoInstallation();
+
     final notificationService = NotificationService();
     await notificationService.initialize(savedProfile);
-
-    final settings = SettingsRepositoryImpl(settingsBox);
-    shouldAnnounceCoelhoInstallation = rawProfile == null &&
-        savedProfile == Profile.coelho &&
-        !settings.hasAnnouncedCoelhoInstallation();
   } catch (e) {
     debugPrint("Firebase initialization failed (missing config files?): $e");
   }
@@ -71,8 +76,9 @@ void main() async {
 Future<void> _announceCoelhoInstallation() async {
   final announced = await CoelhoInstallationService().announce();
   if (announced) {
-    await SettingsRepositoryImpl(Hive.box('settings'))
-        .saveCoelhoInstallationAnnounced();
+    final settings = SettingsRepositoryImpl(Hive.box('settings'));
+    await settings.saveCoelhoInstallationAnnounced();
+    await settings.clearCoelhoInstallationAnnouncementPending();
   }
 }
 

@@ -75,7 +75,7 @@ class NotificationService {
     if (_isInitialized) return;
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_heart');
 
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
@@ -162,7 +162,7 @@ class NotificationService {
       channelDescription: AppStrings.notificationChannelDescription,
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: 'ic_heart',
       styleInformation: imageBytes == null
           ? null
           : BigPictureStyleInformation(

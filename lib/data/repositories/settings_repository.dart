@@ -13,6 +13,9 @@ abstract class SettingsRepository {
   Future<void> saveLastCloudSync(DateTime value);
   bool hasAnnouncedCoelhoInstallation();
   Future<void> saveCoelhoInstallationAnnounced();
+  bool hasPendingCoelhoInstallationAnnouncement();
+  Future<void> markCoelhoInstallationAnnouncementPending();
+  Future<void> clearCoelhoInstallationAnnouncementPending();
 }
 
 class SettingsRepositoryImpl implements SettingsRepository {
@@ -65,6 +68,22 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> saveCoelhoInstallationAnnounced() async {
     await _box.put('coelho_installation_announced', true);
+  }
+
+  @override
+  bool hasPendingCoelhoInstallationAnnouncement() {
+    return _box.get('coelho_installation_announcement_pending',
+            defaultValue: false) as bool;
+  }
+
+  @override
+  Future<void> markCoelhoInstallationAnnouncementPending() async {
+    await _box.put('coelho_installation_announcement_pending', true);
+  }
+
+  @override
+  Future<void> clearCoelhoInstallationAnnouncementPending() async {
+    await _box.delete('coelho_installation_announcement_pending');
   }
 }
 
